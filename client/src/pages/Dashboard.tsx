@@ -290,7 +290,7 @@ export default function Dashboard() {
                   <CardContent>
                     <p className="text-sm text-[#1F2937] leading-relaxed mb-4">{result.explanation}</p>
                     <div className="space-y-1.5">
-                      {result.breakdown.map((rule, idx) => (
+                      {result.breakdown.map((rule: { rule: string; adjustment: number }, idx: number) => (
                         <div key={idx} className="flex items-center justify-between text-xs p-2 rounded bg-white border border-border">
                           <span className="text-[#6B7280]">{rule.rule}</span>
                           <span className={cn("font-bold", rule.adjustment > 0 ? "text-green-600" : "text-red-600")}>

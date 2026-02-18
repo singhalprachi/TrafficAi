@@ -25,9 +25,28 @@ export async function registerRoutes(
       return res.status(400).json({ message: "No video uploaded" });
     }
 
-    const videoPath = req.file.path;
+    const videoPath = path.resolve(req.file.path);
+    const convertedPath = videoPath + ".mp4";
+    
     try {
-      const cap = new cv.VideoCapture(videoPath);
+      // Use ffmpeg to normalize the video format to something OpenCV definitely likes
+      const ffmpeg = require("ffmpeg-static");
+      const { execSync } = require("child_process");
+      
+      try {
+        execSync(`${ffmpeg} -i ${videoPath} -c:v libx264 -preset ultrafast -crf 28 -an ${convertedPath}`);
+      } catch (fe) {
+        console.error("FFmpeg conversion failed, trying direct open", fe);
+      }
+
+      const pathToOpen = require("fs").existsSync(convertedPath) ? convertedPath : videoPath;
+      const cap = new cv.VideoCapture(pathToOpen);
+
+      if (!cap || cap.get(cv.CAP_PROP_FRAME_COUNT) === 0) {
+        throw new Error("VideoCapture failed to open file or file is empty");
+      }
+
+
       let frameCount = 0;
       let totalMotion = 0;
       let prevFrameGray: cv.Mat | null = null;
@@ -95,6 +114,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Video processing failed" });
     } finally {
       await fs.unlink(videoPath).catch(() => {});
+      await fs.unlink(convertedPath).catch(() => {});
     }
   });
 

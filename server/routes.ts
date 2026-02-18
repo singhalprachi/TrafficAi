@@ -1,14 +1,102 @@
 
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import multer from "multer";
+import cv from "opencv4nodejs-prebuilt-install";
+import fs from "fs/promises";
+import path from "path";
+
+const upload = multer({ dest: "uploads/" });
+
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/simulation/upload", upload.single("video"), async (req: MulterRequest, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No video uploaded" });
+    }
+
+    const videoPath = req.file.path;
+    try {
+      const cap = new cv.VideoCapture(videoPath);
+      let frameCount = 0;
+      let totalMotion = 0;
+      let prevFrameGray: cv.Mat | null = null;
+
+      // Process up to 30 frames for a quick estimate
+      while (frameCount < 30) {
+        const frame = cap.read();
+        if (frame.empty) break;
+
+        const frameGray = frame.bgrToGray().gaussianBlur(new cv.Size(21, 21), 0);
+        
+        if (prevFrameGray) {
+          const frameDelta = prevFrameGray.absdiff(frameGray);
+          const thresh = frameDelta.threshold(25, 255, cv.THRESH_BINARY);
+          const motion = thresh.countNonZero();
+          totalMotion += motion;
+        }
+
+        prevFrameGray = frameGray;
+        frameCount++;
+      }
+      cap.release();
+
+      // Basic estimation logic based on motion intensity
+      const avgMotion = totalMotion / (frameCount || 1);
+      // Adjusted thresholds for more realistic estimates on typical dashcam/traffic footage
+      const estimatedVehicles = Math.min(100, Math.floor(avgMotion / 8000));
+      const estimatedPedestrians = Math.min(100, Math.floor(avgMotion / 3000));
+
+      // Adjust signal based on estimates
+      let greenTime = 25;
+      let explanation = `AI Video Analysis: Detected approx. ${estimatedPedestrians} pedestrians and ${estimatedVehicles} vehicles through motion intensity.`;
+      const breakdown = [{ rule: "Base Time", adjustment: 25 }];
+      let riskLevel: "Low" | "Moderate" | "High" = "Low";
+
+      if (estimatedPedestrians > 30) {
+        greenTime += 20;
+        breakdown.push({ rule: "High Pedestrian Density (>30)", adjustment: 20 });
+        riskLevel = "High";
+      } else if (estimatedPedestrians > 15) {
+        greenTime += 10;
+        breakdown.push({ rule: "Moderate Pedestrian Density (>15)", adjustment: 10 });
+        riskLevel = "Moderate";
+      }
+
+      if (estimatedVehicles > 40) {
+        if (greenTime > 45) {
+          breakdown.push({ rule: "High Traffic Vehicle Cap", adjustment: 45 - greenTime });
+          greenTime = 45;
+        }
+        riskLevel = riskLevel === "Low" ? "Moderate" : riskLevel;
+      }
+
+      res.json({
+        baseGreenTime: 25,
+        adaptiveGreenTime: greenTime,
+        riskLevel,
+        explanation,
+        breakdown,
+        estimatedPedestrians,
+        estimatedVehicles
+      });
+    } catch (err) {
+      console.error("Video processing error:", err);
+      res.status(500).json({ message: "Video processing failed" });
+    } finally {
+      await fs.unlink(videoPath).catch(() => {});
+    }
+  });
 
   app.post(api.simulation.calculate.path, (req, res) => {
     try {

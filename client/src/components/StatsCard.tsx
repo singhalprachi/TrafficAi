@@ -21,37 +21,37 @@ export function StatsCard({
 }: StatsCardProps) {
   
   const colorStyles = {
-    default: "bg-card border-border/50",
-    success: "bg-green-500/10 border-green-500/20 text-green-500",
-    warning: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500",
-    danger: "bg-red-500/10 border-red-500/20 text-red-500",
+    default: "bg-white border-border shadow-sm",
+    success: "bg-green-50 border-green-100 text-green-700",
+    warning: "bg-yellow-50 border-yellow-100 text-yellow-700",
+    danger: "bg-red-50 border-red-100 text-red-700",
   };
 
   return (
     <div className={cn(
-      "rounded-2xl p-6 border shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md",
+      "rounded-xl p-6 border transition-all duration-300 hover:shadow-md",
       colorStyles[color],
       className
     )}>
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className={cn("text-sm font-medium", color === 'default' ? "text-muted-foreground" : "text-current opacity-80")}>
+          <p className={cn("text-xs font-semibold uppercase tracking-wider", color === 'default' ? "text-[#6B7280]" : "text-current opacity-80")}>
             {title}
           </p>
           <div className="flex items-baseline gap-2">
-            <h3 className={cn("text-2xl font-bold tracking-tight", color === 'default' ? "text-foreground" : "text-current")}>
+            <h3 className={cn("text-2xl font-bold tracking-tight", color === 'default' ? "text-[#1F2937]" : "text-current")}>
               {value}
             </h3>
           </div>
         </div>
         {icon && (
-          <div className={cn("p-2 rounded-lg", color === 'default' ? "bg-primary/10 text-primary" : "bg-current/10 text-current")}>
+          <div className={cn("p-2 rounded-lg", color === 'default' ? "bg-slate-50 text-[#4F46E5]" : "bg-current/10 text-current")}>
             {icon}
           </div>
         )}
       </div>
       {description && (
-        <p className={cn("mt-4 text-xs", color === 'default' ? "text-muted-foreground" : "text-current opacity-70")}>
+        <p className={cn("mt-4 text-xs font-medium", color === 'default' ? "text-[#6B7280]" : "text-current opacity-70")}>
           {description}
         </p>
       )}

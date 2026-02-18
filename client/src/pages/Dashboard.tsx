@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCalculateSignal, useSaveSimulation, useGraphData } from "@/hooks/use-simulation";
 import { TrafficLight } from "@/components/TrafficLight";
@@ -8,10 +8,11 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Car, Users, Zap, Clock, TrendingUp, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Car, Users, Zap, Clock, TrendingUp, CheckCircle2, Upload, Video } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const [pedestrians, setPedestrians] = useState(20);
@@ -20,11 +21,49 @@ export default function Dashboard() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [countDown, setCountDown] = useState<number | null>(null);
   const [activeLight, setActiveLight] = useState<"red" | "yellow" | "green">("red");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const calculateMutation = useCalculateSignal();
   const saveMutation = useSaveSimulation();
   const { data: graphData } = useGraphData();
   const { toast } = useToast();
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("video", file);
+
+    try {
+      const response = await fetch("/api/simulation/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+
+      const result = await response.json();
+      setPedestrians(result.estimatedPedestrians);
+      setVehicles(result.estimatedVehicles);
+      
+      toast({
+        title: "Video Analyzed",
+        description: `Detected ~${result.estimatedPedestrians} pedestrians and ~${result.estimatedVehicles} vehicles.`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Could not process video. Please try a smaller file.",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSimulate = async () => {
     setIsSimulating(true);
@@ -113,16 +152,16 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Traffic Control Center</h2>
-          <p className="text-muted-foreground mt-1">Real-time adaptive signal processing powered by AI logic.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-[#1F2937]">Traffic Control Center</h2>
+          <p className="text-[#6B7280] mt-1">Real-time adaptive signal processing with visual motion detection.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex h-3 w-3 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm font-medium text-muted-foreground">System Operational</span>
+          <span className="flex h-3 w-3 rounded-full bg-green-500" />
+          <span className="text-sm font-medium text-[#6B7280]">System Active</span>
         </div>
       </div>
 
@@ -130,24 +169,53 @@ export default function Dashboard() {
         
         {/* Left Column: Controls & Input */}
         <div className="lg:col-span-4 space-y-6">
-          <Card className="glass-panel border-white/5 bg-gradient-to-b from-card to-card/50">
+          <Card className="glass-panel bg-white shadow-sm border-border">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                Simulation Parameters
+              <CardTitle className="flex items-center gap-2 text-[#1F2937]">
+                <Zap className="w-5 h-5 text-[#4F46E5]" />
+                Parameters
               </CardTitle>
-              <CardDescription>Adjust traffic conditions to test the adaptive logic.</CardDescription>
+              <CardDescription className="text-[#6B7280]">Configure environment or upload traffic footage.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               
+              {/* Video Upload Section */}
+              <div className="p-4 rounded-xl border border-dashed border-border bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Video className="w-4 h-4 text-[#4F46E5]" />
+                    Video Analysis
+                  </Label>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2 text-[#4F46E5]"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? <Clock className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  </Button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="video/*" 
+                    onChange={handleFileUpload} 
+                  />
+                </div>
+                <p className="text-xs text-[#6B7280]">
+                  {isUploading ? "Extracting motion data..." : "Upload clip to auto-estimate counts."}
+                </p>
+              </div>
+
               {/* Pedestrians Input */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <Label className="flex items-center gap-2 text-base">
-                    <Users className="w-4 h-4 text-blue-400" />
+                  <Label className="flex items-center gap-2 text-base text-[#1F2937]">
+                    <Users className="w-4 h-4 text-indigo-500" />
                     Pedestrians
                   </Label>
-                  <span className="font-mono text-xl font-bold bg-blue-500/10 text-blue-400 px-3 py-1 rounded-lg border border-blue-500/20">
+                  <span className="font-mono text-lg font-bold text-indigo-600">
                     {pedestrians}
                   </span>
                 </div>
@@ -156,18 +224,17 @@ export default function Dashboard() {
                   onValueChange={(vals) => setPedestrians(vals[0])} 
                   max={100} 
                   step={1}
-                  className="py-2"
                 />
               </div>
 
               {/* Vehicles Input */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <Label className="flex items-center gap-2 text-base">
-                    <Car className="w-4 h-4 text-purple-400" />
+                  <Label className="flex items-center gap-2 text-base text-[#1F2937]">
+                    <Car className="w-4 h-4 text-indigo-500" />
                     Vehicles
                   </Label>
-                  <span className="font-mono text-xl font-bold bg-purple-500/10 text-purple-400 px-3 py-1 rounded-lg border border-purple-500/20">
+                  <span className="font-mono text-lg font-bold text-indigo-600">
                     {vehicles}
                   </span>
                 </div>
@@ -176,15 +243,13 @@ export default function Dashboard() {
                   onValueChange={(vals) => setVehicles(vals[0])} 
                   max={100} 
                   step={1}
-                  className="py-2"
                 />
               </div>
 
               {/* Peak Hour Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/50 border border-white/5">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-border">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Peak Hour Mode</Label>
-                  <p className="text-xs text-muted-foreground">Increases base timing pressure</p>
+                  <Label className="text-sm font-medium text-[#1F2937]">Peak Hour</Label>
                 </div>
                 <Switch 
                   checked={isPeakHour} 
@@ -195,15 +260,15 @@ export default function Dashboard() {
               <Button 
                 onClick={handleSimulate} 
                 disabled={isSimulating}
-                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-primary to-violet-600 hover:to-violet-500 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300"
+                className="w-full h-11 text-base font-semibold bg-[#4F46E5] hover:bg-[#4338CA] transition-colors shadow-sm"
               >
                 {isSimulating ? (
                   <>
-                    <Clock className="mr-2 h-5 w-5 animate-spin" />
-                    Processing...
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                    Calculating...
                   </>
                 ) : (
-                  <>Run Simulation</>
+                  <>Process Signal</>
                 )}
               </Button>
 
@@ -214,21 +279,21 @@ export default function Dashboard() {
           <AnimatePresence>
             {result && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
               >
-                <Card className="bg-muted/30 border-dashed">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI Decision Logic</CardTitle>
+                <Card className="bg-slate-50 border-dashed shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Analysis Result</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm leading-relaxed">{result.explanation}</p>
-                    <div className="mt-4 space-y-2">
+                    <p className="text-sm text-[#1F2937] leading-relaxed mb-4">{result.explanation}</p>
+                    <div className="space-y-1.5">
                       {result.breakdown.map((rule, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs p-2 rounded bg-background/50">
-                          <span>{rule.rule}</span>
-                          <span className={cn("font-mono font-bold", rule.adjustment > 0 ? "text-green-400" : "text-red-400")}>
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 rounded bg-white border border-border">
+                          <span className="text-[#6B7280]">{rule.rule}</span>
+                          <span className={cn("font-bold", rule.adjustment > 0 ? "text-green-600" : "text-red-600")}>
                             {rule.adjustment > 0 ? "+" : ""}{rule.adjustment}s
                           </span>
                         </div>
@@ -246,44 +311,43 @@ export default function Dashboard() {
           
           {/* Top Row: Traffic Light & Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <div className="flex justify-center py-8 bg-zinc-900/50 rounded-2xl border border-white/5 shadow-inner">
+            <div className="flex justify-center py-10 bg-slate-100 rounded-2xl border border-border shadow-inner">
               <TrafficLight activeLight={activeLight} countdown={countDown} />
             </div>
 
             <div className="grid gap-4">
               <StatsCard 
-                title="Adaptive Green Time" 
+                title="Optimal Green Duration" 
                 value={`${result ? result.adaptiveGreenTime : '--'}s`}
-                description="Optimized duration based on real-time inputs"
-                icon={<Clock className="w-5 h-5" />}
-                className="bg-gradient-to-br from-card to-primary/5"
+                description="Optimized for current flow"
+                icon={<Clock className="w-5 h-5 text-[#4F46E5]" />}
+                className="bg-white border-border shadow-sm"
               />
               
               <StatsCard 
-                title="Risk Assessment" 
+                title="Intersection Risk" 
                 value={result?.riskLevel || "Pending"}
-                description="Current intersection safety rating"
+                description="Safety classification"
                 icon={<AlertCircle className="w-5 h-5" />}
                 color={getRiskColor(result?.riskLevel)}
+                className="bg-white border-border shadow-sm"
               />
 
-              {/* Comparison Stat */}
               {result && (
-                <div className="relative overflow-hidden rounded-2xl border bg-card p-6">
+                <div className="relative overflow-hidden rounded-xl border bg-white p-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Efficiency Gain</p>
-                      <h3 className="text-2xl font-bold mt-1">
+                      <p className="text-sm font-medium text-[#6B7280]">Efficiency Status</p>
+                      <h3 className="text-2xl font-bold mt-1 text-[#1F2937]">
                         {result.adaptiveGreenTime !== 25 ? (
-                          <span className={result.adaptiveGreenTime > 25 ? "text-blue-400" : "text-orange-400"}>
-                             {Math.abs(result.adaptiveGreenTime - 25)}s {result.adaptiveGreenTime > 25 ? "Added" : "Reduced"}
+                          <span className={result.adaptiveGreenTime > 25 ? "text-indigo-600" : "text-orange-600"}>
+                             {Math.abs(result.adaptiveGreenTime - 25)}s {result.adaptiveGreenTime > 25 ? "Increase" : "Decrease"}
                           </span>
                         ) : "Optimal"}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-2">vs. Static 25s Standard</p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6 text-muted-foreground" />
+                    <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-[#6B7280]" />
                     </div>
                   </div>
                 </div>
@@ -292,10 +356,10 @@ export default function Dashboard() {
           </div>
 
           {/* Graph Section */}
-          <Card className="border-white/5 bg-card/50">
+          <Card className="bg-white border-border shadow-sm">
             <CardHeader>
-              <CardTitle>Algorithm Performance Curve</CardTitle>
-              <CardDescription>Pedestrian Density vs. Green Signal Duration</CardDescription>
+              <CardTitle className="text-[#1F2937]">Signal Response Curve</CardTitle>
+              <CardDescription className="text-[#6B7280]">Relationship between density and signal timing</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[300px] w-full">
@@ -303,33 +367,32 @@ export default function Dashboard() {
                   <AreaChart data={graphData || []}>
                     <defs>
                       <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis 
                       dataKey="pedestrians" 
-                      stroke="#666" 
+                      stroke="#9CA3AF" 
+                      fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      label={{ value: 'Pedestrians', position: 'insideBottom', offset: -5 }} 
                     />
                     <YAxis 
-                      stroke="#666" 
+                      stroke="#9CA3AF" 
+                      fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      label={{ value: 'Green Time (s)', angle: -90, position: 'insideLeft' }} 
                     />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
                     />
                     <Area 
                       type="monotone" 
                       dataKey="greenTime" 
-                      stroke="#8b5cf6" 
-                      strokeWidth={3}
+                      stroke="#4F46E5" 
+                      strokeWidth={2}
                       fillOpacity={1} 
                       fill="url(#colorGreen)" 
                     />

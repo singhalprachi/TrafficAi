@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Car, Users, Zap, Clock, TrendingUp, CheckCircle2 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const [pedestrians, setPedestrians] = useState(20);

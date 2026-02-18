@@ -7,7 +7,10 @@ import { z } from "zod";
 import multer from "multer";
 import cv from "opencv4nodejs-prebuilt-install";
 import fs from "fs/promises";
+import { existsSync } from "fs";
 import path from "path";
+import ffmpeg from "ffmpeg-static";
+import { execSync } from "child_process";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -30,8 +33,6 @@ export async function registerRoutes(
     
     try {
       // Use ffmpeg to normalize the video format to something OpenCV definitely likes
-      const ffmpeg = require("ffmpeg-static");
-      const { execSync } = require("child_process");
       
       try {
         execSync(`${ffmpeg} -i ${videoPath} -c:v libx264 -preset ultrafast -crf 28 -an ${convertedPath}`);
@@ -39,7 +40,7 @@ export async function registerRoutes(
         console.error("FFmpeg conversion failed, trying direct open", fe);
       }
 
-      const pathToOpen = require("fs").existsSync(convertedPath) ? convertedPath : videoPath;
+      const pathToOpen = existsSync(convertedPath) ? convertedPath : videoPath;
       const cap = new cv.VideoCapture(pathToOpen);
 
       if (!cap || cap.get(cv.CAP_PROP_FRAME_COUNT) === 0) {

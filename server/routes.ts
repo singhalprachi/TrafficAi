@@ -52,12 +52,14 @@ export async function registerRoutes(
       let totalMotion = 0;
       let prevFrameGray: cv.Mat | null = null;
 
-      // Process up to 30 frames for a quick estimate
-      while (frameCount < 30) {
+      // Process up to 10 frames for a quicker estimate and reduced load
+      while (frameCount < 10) {
         const frame = cap.read();
         if (frame.empty) break;
 
-        const frameGray = frame.bgrToGray().gaussianBlur(new cv.Size(21, 21), 0);
+        // Downscale frame for faster processing
+        const smallFrame = frame.rescale(0.5);
+        const frameGray = smallFrame.bgrToGray().gaussianBlur(new cv.Size(21, 21), 0);
         
         if (prevFrameGray) {
           const frameDelta = prevFrameGray.absdiff(frameGray);
@@ -73,9 +75,10 @@ export async function registerRoutes(
 
       // Basic estimation logic based on motion intensity
       const avgMotion = totalMotion / (frameCount || 1);
-      // Adjusted thresholds for more realistic estimates on typical dashcam/traffic footage
-      const estimatedVehicles = Math.min(100, Math.floor(avgMotion / 8000));
-      const estimatedPedestrians = Math.min(100, Math.floor(avgMotion / 3000));
+      // Adjusted thresholds for high-resolution 4K video
+      // 4K has 4x the pixels of 1080p, so motion counts are much higher
+      const estimatedVehicles = Math.min(100, Math.floor(avgMotion / 32000));
+      const estimatedPedestrians = Math.min(100, Math.floor(avgMotion / 12000));
 
       // Adjust signal based on estimates
       let greenTime = 25;

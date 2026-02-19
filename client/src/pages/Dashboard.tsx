@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useCalculateSignal, useSaveSimulation, useGraphData } from "@/hooks/use-simulation";
 import { TrafficLight } from "@/components/TrafficLight";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Car, Users, Zap, Clock, TrendingUp, Upload, ShieldCheck, Activity } from "lucide-react";
+import { Car, Users, Zap, Clock, TrendingUp, Upload, ShieldCheck, Activity, RefreshCw } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [vehicles, setVehicles] = useState(15);
   const [isPeakHour, setIsPeakHour] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isAutoMode, setIsAutoMode] = useState(false);
   const [countDown, setCountDown] = useState<number | null>(null);
   const [activeLight, setActiveLight] = useState<"red" | "yellow" | "green">("red");
   const [isUploading, setIsUploading] = useState(false);
@@ -25,6 +26,17 @@ export default function Dashboard() {
   const saveMutation = useSaveSimulation();
   const { data: graphData } = useGraphData();
   const { toast } = useToast();
+
+  // Auto Adaptive Logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isAutoMode && !isSimulating) {
+      interval = setInterval(() => {
+        handleSimulate();
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [isAutoMode, isSimulating, pedestrians, vehicles]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,9 +60,10 @@ export default function Dashboard() {
   };
 
   const handleSimulate = async () => {
+    if (isSimulating) return;
     setIsSimulating(true);
+    
     try {
-      // Industry logic based on requirements
       let baseTime = 10;
       let calculatedTime = baseTime;
       let targetLight: "red" | "green" = "red";
@@ -62,15 +75,12 @@ export default function Dashboard() {
         targetLight = "red";
         calculatedTime += pedestrians;
       } else {
-        // Equal: alternate handled by state, for this turn let's pick green
         targetLight = activeLight === "green" ? "red" : "green";
         calculatedTime += vehicles;
       }
       
       const finalTime = Math.min(60, calculatedTime);
 
-      // Start Sequence
-      // If we need to change from Red to Green or vice versa, we might go through Yellow
       if (activeLight !== targetLight) {
         setActiveLight("yellow");
         setCountDown(3);
@@ -104,7 +114,9 @@ export default function Dashboard() {
       if (timeLeft <= 0) {
         clearInterval(mainTimer);
         setIsSimulating(false);
-        toast({ title: "Signal Cycle Complete", description: `Cycle lasted ${duration}s` });
+        if (!isAutoMode) {
+          toast({ title: "Signal Cycle Complete", description: `Cycle lasted ${duration}s` });
+        }
       }
     }, 1000);
   };
@@ -120,17 +132,24 @@ export default function Dashboard() {
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">TrafficAI Pro</h1>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Enterprise Signal Control v2.5</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Enterprise Signal Control v2.6</p>
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-200">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Cloud Synchronized</span>
+        <div className="flex items-center gap-4">
+          <div className={cn(
+            "flex items-center gap-3 px-5 py-2.5 rounded-full shadow-sm border transition-all duration-300",
+            isAutoMode ? "bg-emerald-50 border-emerald-100" : "bg-white border-slate-200"
+          )}>
+            <RefreshCw className={cn("w-4 h-4", isAutoMode ? "text-emerald-500 animate-spin-slow" : "text-slate-400")} />
+            <span className={cn("text-[11px] font-bold uppercase tracking-wider", isAutoMode ? "text-emerald-600" : "text-slate-500")}>
+              {isAutoMode ? "Auto Adaptive Active" : "Manual Mode"}
+            </span>
+            <Switch checked={isAutoMode} onCheckedChange={setIsAutoMode} disabled={isSimulating} />
+          </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
-        {/* Controls */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="premium-card">
             <CardContent className="p-8 space-y-8">
@@ -155,7 +174,7 @@ export default function Dashboard() {
                     </Label>
                     <span className="text-xl font-black text-primary">{pedestrians}</span>
                   </div>
-                  <Slider value={[pedestrians]} onValueChange={(v) => setPedestrians(v[0])} max={100} step={1} disabled={isSimulating} />
+                  <Slider value={[pedestrians]} onValueChange={(v) => setPedestrians(v[0])} max={100} step={1} />
                 </div>
 
                 <div className="space-y-5">
@@ -165,7 +184,7 @@ export default function Dashboard() {
                     </Label>
                     <span className="text-xl font-black text-primary">{vehicles}</span>
                   </div>
-                  <Slider value={[vehicles]} onValueChange={(v) => setVehicles(v[0])} max={100} step={1} disabled={isSimulating} />
+                  <Slider value={[vehicles]} onValueChange={(v) => setVehicles(v[0])} max={100} step={1} />
                 </div>
 
                 <div className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100">
@@ -173,13 +192,15 @@ export default function Dashboard() {
                   <Switch checked={isPeakHour} onCheckedChange={setIsPeakHour} disabled={isSimulating} />
                 </div>
 
-                <Button 
-                  onClick={handleSimulate} 
-                  disabled={isSimulating}
-                  className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
-                >
-                  {isSimulating ? "System Processing..." : "Execute Signal Phase"}
-                </Button>
+                {!isAutoMode && (
+                  <Button 
+                    onClick={handleSimulate} 
+                    disabled={isSimulating}
+                    className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
+                  >
+                    {isSimulating ? "System Processing..." : "Execute Signal Phase"}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -195,7 +216,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Visualization */}
         <div className="lg:col-span-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card className="premium-card flex items-center justify-center p-12 min-h-[450px]">
@@ -210,7 +230,8 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                     <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
-                      {vehicles > pedestrians 
+                      {isAutoMode ? "Auto-Adaptive: Continuously monitoring traffic flow for priority shifts." : 
+                      vehicles > pedestrians 
                         ? "Vehicle priority detected. Extending Green phase to optimize flow." 
                         : pedestrians > vehicles 
                         ? "High pedestrian volume. Activating Walk phase for public safety."

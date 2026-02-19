@@ -1,0 +1,118 @@
+You are upgrading an existing Smart Adaptive Traffic Signal System built with:
+
+Frontend: React + TypeScript + Tailwind CSS
+Backend: Node.js + Express
+Auto polling interval: 2 seconds
+Mandatory 3-second yellow transition rule
+No conflicting signal states allowed
+
+CRITICAL RULES:
+- Do NOT modify the core traffic phase logic.
+- Do NOT remove the yellow transition.
+- Do NOT change auto adaptive logic.
+- Only ADD new modular features.
+- Keep code clean and separated into components.
+
+========================================
+FEATURE 1: ANALYTICS PANEL
+========================================
+
+Create a new component:
+
+components/AnalyticsPanel.tsx
+
+Track and display:
+
+- Total Cycles Completed
+- Average Vehicle Wait Time
+- Average Pedestrian Wait Time
+- Current Mode (Manual / Auto)
+- Last Priority Shift Time
+
+Use React state or context to calculate averages safely.
+Do not interfere with signal timing logic.
+
+Design Requirements:
+- Light theme
+- White card
+- Soft shadow
+- Rounded corners (rounded-2xl)
+- Clean typography
+- Responsive layout
+
+Place the AnalyticsPanel beside the traffic signal UI.
+
+========================================
+FEATURE 2: LIVE TRAFFIC GRAPH
+========================================
+
+Install:
+npm install recharts
+
+Create:
+
+components/TrafficGraph.tsx
+
+Requirements:
+- Show vehicle density
+- Show pedestrian density
+- Keep last 60 seconds of data
+- Update every 2 seconds
+- Use LineChart from Recharts
+- Responsive container
+
+Design:
+- Clean white card
+- Professional minimal look
+- Smooth rendering
+
+Data Handling:
+Maintain an array that pushes new density values every polling cycle.
+If array length exceeds 30 entries (60 seconds), shift old values.
+
+========================================
+FEATURE 3: EMERGENCY OVERRIDE
+========================================
+
+Add a red button in header:
+
+"🚑 Emergency Override"
+
+Create emergency state flag.
+
+When clicked:
+1. Wait for current phase to finish
+2. Trigger 3-second yellow
+3. Force Vehicle GREEN for exactly 20 seconds
+4. Pedestrian must remain STOP
+5. After 20 seconds resume previous mode automatically
+
+IMPORTANT:
+- Do not interrupt active timer abruptly
+- Do not create conflicting signal states
+- Respect existing safety constraints
+
+Add a visible "Emergency Active" badge during override.
+
+========================================
+UI REQUIREMENTS
+========================================
+
+- Light professional theme
+- Soft shadows
+- Rounded cards
+- Proper spacing
+- Smooth transitions
+- No flicker
+- No layout break
+- Fully responsive
+
+========================================
+CODE QUALITY
+========================================
+
+- Use modular components
+- Do not duplicate logic
+- Keep clean state management
+- Add comments explaining new logic
+- Do not break existing functionality

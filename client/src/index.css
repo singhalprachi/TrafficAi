@@ -1,25 +1,25 @@
 
 :root {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --card: 224 71% 4%;
-  --card-foreground: 213 31% 91%;
-  --popover: 224 71% 4%;
-  --popover-foreground: 215 20.2% 65.1%;
-  --primary: 243 75% 59%;
+  --background: 210 40% 98%; /* #f5f7fb */
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%; /* Modern Blue */
   --primary-foreground: 210 40% 98%;
-  --secondary: 222.2 47.4% 11.2%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 223 47% 11%;
-  --muted-foreground: 215.4 16.3% 56.9%;
-  --accent: 216 34% 17%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 216 34% 17%;
-  --input: 216 34% 17%;
-  --ring: 243 75% 59%;
-  --radius: 1.25rem;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221 83% 53%;
+  --radius: 1rem;
 }
 
 @tailwind base;
@@ -29,16 +29,18 @@
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(at 0% 0%, hsla(243, 75%, 59%, 0.15) 0, transparent 50%),
-                      radial-gradient(at 100% 0%, hsla(262, 83%, 58%, 0.15) 0, transparent 50%);
+    font-family: 'Inter', sans-serif;
   }
 }
 
-.glass-card {
-  @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl rounded-[20px];
+.premium-card {
+  @apply bg-card border border-border/50 shadow-sm rounded-[20px] transition-all duration-300;
 }
 
-.traffic-light-glow {
-  filter: blur(20px);
-  opacity: 0.6;
+.premium-card:hover {
+  @apply shadow-md border-border;
+}
+
+.traffic-light-container {
+  @apply bg-slate-900 p-6 rounded-[32px] shadow-inner border-4 border-slate-800;
 }

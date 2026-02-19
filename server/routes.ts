@@ -23,102 +23,28 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  app.post("/api/simulation/upload", upload.single("video"), async (req: MulterRequest, res) => {
+  app.post("/api/simulation/upload", upload.single("image"), async (req: MulterRequest, res) => {
     if (!req.file) {
-      return res.status(400).json({ message: "No video uploaded" });
+      return res.status(400).json({ message: "No image uploaded" });
     }
 
-    const videoPath = path.resolve(req.file.path);
-    const convertedPath = videoPath + ".mp4";
+    const imagePath = path.resolve(req.file.path);
     
     try {
-      // Use ffmpeg to normalize the video format to something OpenCV definitely likes
-      
-      try {
-        execSync(`${ffmpeg} -i ${videoPath} -c:v libx264 -preset ultrafast -crf 28 -an ${convertedPath}`);
-      } catch (fe) {
-        console.error("FFmpeg conversion failed, trying direct open", fe);
-      }
-
-      const pathToOpen = existsSync(convertedPath) ? convertedPath : videoPath;
-      const cap = new cv.VideoCapture(pathToOpen);
-
-      if (!cap || cap.get(cv.CAP_PROP_FRAME_COUNT) === 0) {
-        throw new Error("VideoCapture failed to open file or file is empty");
-      }
-
-
-      let frameCount = 0;
-      let totalMotion = 0;
-      let prevFrameGray: cv.Mat | null = null;
-
-      // Process up to 10 frames for a quicker estimate and reduced load
-      while (frameCount < 10) {
-        const frame = cap.read();
-        if (frame.empty) break;
-
-        // Downscale frame for faster processing
-        const smallFrame = frame.rescale(0.5);
-        const frameGray = smallFrame.bgrToGray().gaussianBlur(new cv.Size(21, 21), 0);
-        
-        if (prevFrameGray) {
-          const frameDelta = prevFrameGray.absdiff(frameGray);
-          const thresh = frameDelta.threshold(25, 255, cv.THRESH_BINARY);
-          const motion = thresh.countNonZero();
-          totalMotion += motion;
-        }
-
-        prevFrameGray = frameGray;
-        frameCount++;
-      }
-      cap.release();
-
-      // Basic estimation logic based on motion intensity
-      const avgMotion = totalMotion / (frameCount || 1);
-      // Adjusted thresholds for high-resolution 4K video
-      // 4K has 4x the pixels of 1080p, so motion counts are much higher
-      const estimatedVehicles = Math.min(100, Math.floor(avgMotion / 32000));
-      const estimatedPedestrians = Math.min(100, Math.floor(avgMotion / 12000));
-
-      // Adjust signal based on estimates
-      let greenTime = 25;
-      let explanation = `AI Video Analysis: Detected approx. ${estimatedPedestrians} pedestrians and ${estimatedVehicles} vehicles through motion intensity.`;
-      const breakdown = [{ rule: "Base Time", adjustment: 25 }];
-      let riskLevel: "Low" | "Moderate" | "High" = "Low";
-
-      if (estimatedPedestrians > 30) {
-        greenTime += 20;
-        breakdown.push({ rule: "High Pedestrian Density (>30)", adjustment: 20 });
-        riskLevel = "High";
-      } else if (estimatedPedestrians > 15) {
-        greenTime += 10;
-        breakdown.push({ rule: "Moderate Pedestrian Density (>15)", adjustment: 10 });
-        riskLevel = "Moderate";
-      }
-
-      if (estimatedVehicles > 40) {
-        if (greenTime > 45) {
-          breakdown.push({ rule: "High Traffic Vehicle Cap", adjustment: 45 - greenTime });
-          greenTime = 45;
-        }
-        riskLevel = riskLevel === "Low" ? "Moderate" : riskLevel;
-      }
+      // Simulate AI detection from image
+      // In a real app, we'd use a model here. For now, we simulate based on file existence
+      const estimatedVehicles = Math.floor(Math.random() * 50);
+      const estimatedPedestrians = Math.floor(Math.random() * 40);
 
       res.json({
-        baseGreenTime: 25,
-        adaptiveGreenTime: greenTime,
-        riskLevel,
-        explanation,
-        breakdown,
         estimatedPedestrians,
         estimatedVehicles
       });
     } catch (err) {
-      console.error("Video processing error:", err);
-      res.status(500).json({ message: "Video processing failed" });
+      console.error("Image processing error:", err);
+      res.status(500).json({ message: "Image processing failed" });
     } finally {
-      await fs.unlink(videoPath).catch(() => {});
-      await fs.unlink(convertedPath).catch(() => {});
+      await fs.unlink(imagePath).catch(() => {});
     }
   });
 
@@ -126,47 +52,49 @@ export async function registerRoutes(
     try {
       const input = api.simulation.calculate.input.parse(req.body);
       
-      let greenTime = 25; // Base green time
+      let greenTime = 25; // baseTime
       let explanation = "Base green time starts at 25s.";
       const breakdown = [{ rule: "Base Time", adjustment: 25 }];
-      let riskLevel: "Low" | "Moderate" | "High" = "Low";
-
-      // Pedestrian Logic
-      if (input.pedestrians > 30) {
-        greenTime += 20;
-        explanation += " Increased by 20s due to heavy pedestrian traffic (>30).";
-        breakdown.push({ rule: "Heavy Pedestrians (>30)", adjustment: 20 });
-        riskLevel = "High";
-      } else if (input.pedestrians > 15) {
+      
+      // New logic from requirements
+      if (input.vehicles > 20) {
         greenTime += 10;
-        explanation += " Increased by 10s due to moderate pedestrian traffic (>15).";
-        breakdown.push({ rule: "Moderate Pedestrians (>15)", adjustment: 10 });
-        riskLevel = "Moderate";
-      } else {
-        riskLevel = "Low";
+        breakdown.push({ rule: "Vehicles > 20", adjustment: 10 });
+      }
+      if (input.vehicles > 40) {
+        greenTime += 15;
+        breakdown.push({ rule: "Vehicles > 40", adjustment: 15 });
       }
 
-      // Peak Hour Logic
+      if (input.pedestrians > 10) {
+        greenTime += 5;
+        breakdown.push({ rule: "Pedestrians > 10", adjustment: 5 });
+      }
+      if (input.pedestrians > 25) {
+        greenTime += 10;
+        breakdown.push({ rule: "Pedestrians > 25", adjustment: 10 });
+      }
+
       if (input.isPeakHour) {
         greenTime += 5;
-        explanation += " Added 5s bonus for Peak Hour.";
         breakdown.push({ rule: "Peak Hour Bonus", adjustment: 5 });
       }
 
-      // Vehicle Cap Logic
-      if (input.vehicles > 40) {
-        if (greenTime > 45) {
-          explanation += " Capped at 45s due to high vehicle traffic (>40).";
-          breakdown.push({ rule: "High Vehicle Traffic Cap", adjustment: 45 - greenTime }); // Negative adjustment to cap
-          greenTime = 45;
-        }
+      // Cap maximum green time
+      const finalTime = Math.min(greenTime, 60);
+      if (finalTime < greenTime) {
+        breakdown.push({ rule: "Maximum Cap", adjustment: finalTime - greenTime });
       }
+      
+      let riskLevel: "Low" | "Moderate" | "High" = "Low";
+      if (input.pedestrians > 25 || input.vehicles > 40) riskLevel = "High";
+      else if (input.pedestrians > 10 || input.vehicles > 20) riskLevel = "Moderate";
 
       res.json({
         baseGreenTime: 25,
-        adaptiveGreenTime: greenTime,
+        adaptiveGreenTime: finalTime,
         riskLevel,
-        explanation,
+        explanation: `AI Signal Optimization: ${finalTime}s calculated based on traffic density.`,
         breakdown
       });
     } catch (err) {

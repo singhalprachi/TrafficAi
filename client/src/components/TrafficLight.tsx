@@ -1,65 +1,81 @@
-import { motion } from "framer-motion";
+
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface TrafficLightProps {
   activeLight: "red" | "yellow" | "green";
-  countdown?: number | null;
+  countdown: number | null;
+  pedestrianActive?: boolean;
 }
 
-export function TrafficLight({ activeLight, countdown }: TrafficLightProps) {
+export function TrafficLight({ activeLight, countdown, pedestrianActive }: TrafficLightProps) {
   return (
-    <div className="bg-[#1F2937] p-6 rounded-3xl border-4 border-[#374151] shadow-xl flex flex-col gap-6 w-32 items-center relative overflow-hidden">
-      {/* Glossy overlay effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none rounded-3xl" />
-      
-      {/* Red Light */}
-      <div className="relative">
-        <motion.div
-          animate={{
-            opacity: activeLight === "red" ? 1 : 0.2,
-            scale: activeLight === "red" ? 1.05 : 1,
-            boxShadow: activeLight === "red" 
-              ? "0 0 30px 5px rgba(239, 68, 68, 0.5)" 
-              : "none"
-          }}
-          className="w-20 h-20 rounded-full bg-red-500 border-4 border-[#111827]"
-        />
+    <div className="flex flex-col items-center gap-8">
+      {/* Vehicle Traffic Light */}
+      <div className="w-24 bg-zinc-900 p-4 rounded-3xl shadow-2xl flex flex-col gap-4 border border-white/10">
+        <Light color="bg-red-600" active={activeLight === "red"} glowColor="bg-red-500" />
+        <Light color="bg-yellow-500" active={activeLight === "yellow"} glowColor="bg-yellow-400" />
+        <Light color="bg-green-600" active={activeLight === "green"} glowColor="bg-green-500" />
       </div>
 
-      {/* Yellow Light */}
-      <div className="relative">
-        <motion.div
-          animate={{
-            opacity: activeLight === "yellow" ? 1 : 0.2,
-            scale: activeLight === "yellow" ? 1.05 : 1,
-            boxShadow: activeLight === "yellow" 
-              ? "0 0 30px 5px rgba(234, 179, 8, 0.5)" 
-              : "none"
-          }}
-          className="w-20 h-20 rounded-full bg-yellow-500 border-4 border-[#111827]"
-        />
+      {/* Pedestrian Crossing Visual */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Pedestrian Crossing</div>
+        <div className="w-16 h-10 bg-zinc-900 rounded-xl border border-white/10 flex items-center justify-center relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            {pedestrianActive ? (
+              <motion.div
+                key="walk"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="text-green-500 font-bold text-lg"
+              >
+                WALK
+              </motion.div>
+            ) : (
+              <motion.div
+                key="stop"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="text-red-500 font-bold text-lg"
+              >
+                WAIT
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* Green Light */}
-      <div className="relative flex items-center justify-center">
+      {/* Timer Overlay */}
+      {countdown !== null && (
+        <div className="text-4xl font-mono font-bold text-indigo-400 tabular-nums">
+          {countdown}s
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Light({ color, active, glowColor }: { color: string; active: boolean; glowColor: string }) {
+  return (
+    <div className="relative w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+      <motion.div
+        animate={{ 
+          opacity: active ? 1 : 0.2,
+          scale: active ? 1.05 : 1
+        }}
+        transition={{ duration: 0.5 }}
+        className={cn("w-14 h-14 rounded-full", color, active && "shadow-[0_0_30px_rgba(255,255,255,0.2)]")}
+      />
+      {active && (
         <motion.div
-          animate={{
-            opacity: activeLight === "green" ? 1 : 0.2,
-            scale: activeLight === "green" ? 1.05 : 1,
-            boxShadow: activeLight === "green" 
-              ? "0 0 30px 5px rgba(34, 197, 94, 0.5)" 
-              : "none"
-          }}
-          className="w-20 h-20 rounded-full bg-green-500 border-4 border-[#111827]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          className={cn("absolute inset-0 traffic-light-glow rounded-full", glowColor)}
         />
-        {activeLight === "green" && countdown !== null && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-3xl font-bold font-mono text-white/90 drop-shadow-sm">
-              {countdown}
-            </span>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

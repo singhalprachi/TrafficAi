@@ -1,5 +1,5 @@
 
-import { pgTable, text, serial, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -11,7 +11,7 @@ export const simulationRuns = pgTable("simulation_runs", {
   calculatedGreenTime: integer("calculated_green_time").notNull(),
   riskLevel: text("risk_level").notNull(), // "Low", "Moderate", "High"
   explanation: text("explanation").notNull(),
-  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"), // Simplified timestamp for simulation logs
+  createdAt: text("created_at").notNull().default("CURRENT_TIMESTAMP"),
 });
 
 export const insertSimulationRunSchema = createInsertSchema(simulationRuns).omit({ id: true, createdAt: true });
@@ -19,7 +19,6 @@ export const insertSimulationRunSchema = createInsertSchema(simulationRuns).omit
 export type SimulationRun = typeof simulationRuns.$inferSelect;
 export type InsertSimulationRun = z.infer<typeof insertSimulationRunSchema>;
 
-// Input schema for the calculation endpoint
 export const calculateSignalSchema = z.object({
   pedestrians: z.number().min(0),
   vehicles: z.number().min(0),

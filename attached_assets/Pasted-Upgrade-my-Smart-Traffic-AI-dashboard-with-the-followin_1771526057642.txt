@@ -1,0 +1,94 @@
+Upgrade my Smart Traffic AI dashboard with the following changes:
+
+1. Remove video upload feature completely.
+2. Add image upload feature for traffic detection.
+3. When user uploads an image:
+   - Simulate AI detection.
+   - Detect number of pedestrians.
+   - Detect number of vehicles.
+   - Update sliders automatically based on detection.
+   - Recalculate signal timing.
+
+Signal Logic Requirements:
+
+Create adaptive signal control logic:
+
+Let:
+baseTime = 25
+
+Green time should increase based on:
+- vehicles count
+- pedestrians count
+- peak hour toggle
+
+New logic:
+
+let time = baseTime;
+
+if (vehicles > 20) time += 10;
+if (vehicles > 40) time += 15;
+
+if (pedestrians > 10) time += 5;
+if (pedestrians > 25) time += 10;
+
+if (peakHour) time += 5;
+
+// Cap maximum green time
+time = Math.min(time, 60);
+
+Signal Switching Rules:
+
+- If pedestrians > vehicles:
+    Vehicles light = RED
+    Pedestrian crossing active
+- If vehicles > pedestrians:
+    Vehicles light = GREEN
+    Pedestrian light = RED
+- If both are high:
+    Alternate signals with timed switching
+
+Add:
+- Animated traffic light with soft glow.
+- Smooth transitions between red/yellow/green.
+- AI Decision Panel explaining why signal changed.
+
+UI Requirements:
+
+Design a modern, soft, premium Smart Traffic AI dashboard.
+
+Style:
+- Dark navy gradient background
+- Minimal glass effect
+- Soft indigo accent
+- Rounded cards (20px)
+- Subtle shadows
+- No harsh neon glow
+- Comfortable for eyes
+
+Layout:
+Top header:
+   - TrafficAI v2.1
+   - System Active badge
+
+Left panel:
+   - Image Upload button
+   - Pedestrians count (auto-updated)
+   - Vehicles count (auto-updated)
+   - Peak Hour toggle
+
+Center:
+   - Elegant animated traffic signal
+
+Right:
+   - AI Decision explanation
+   - Traffic Load circular meter
+   - Intersection Risk level
+
+Use:
+- HTML
+- CSS
+- Minimal JavaScript
+- Clean modern font (Inter or Poppins)
+- Smooth hover effects
+
+Make it look like a real startup SaaS dashboard.
